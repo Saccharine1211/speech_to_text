@@ -18,26 +18,36 @@ def list_microphones():
     device_index = int(input("사용할 마이크 장치 번호를 입력하세요: "))
     return device_index
 
-def recognize_speech(device_index):
-    """ 선택된 마이크 장치를 사용하여 음성 인식을 수행합니다. """
+def recognize_speech(device_index, wake_word):
+    """ 선택된 마이크 장치를 사용하여 wake word를 감지하고 음성 인식을 수행합니다. """
     recognizer = sr.Recognizer()
     with sr.Microphone(device_index=device_index) as source:
-        print("말하세요...")
-        audio = recognizer.listen(source)
+        recognizer.adjust_for_ambient_noise(source)  # 배경 소음 조정
+        print(f"{wake_word}를 기다리는 중...")
 
-        try:
-            # Google Web Speech API를 사용하여 인식
-            text = recognizer.recognize_google(audio, language='ko-KR')
-            print("인식된 문장:", text)
-        except sr.UnknownValueError:
-            # 음성 인식 실패
-            print("음성을 인식할 수 없습니다.")
-        except sr.RequestError as e:
-            # API 요청 실패
-            print(f"구글 API에서 오류가 발생했습니다; {e}")
+        while True:
+            audio = recognizer.listen(source)
+            try:
+                text = recognizer.recognize_google(audio, language='ko-KR')
+
+                # Wake word 감지
+                if wake_word in text:
+                    print(f"{wake_word} 감지됨! 추가 음성을 말하세요...")
+                    audio = recognizer.listen(source)
+                    # 추가 음성 인식
+                    text = recognizer.recognize_google(audio, language='ko-KR')
+                    print("인식된 문장:", text)
+                    break
+
+            except sr.UnknownValueError:
+                continue
+            except sr.RequestError as e:
+                print(f"구글 API에서 오류가 발생했습니다; {e}")
+                break
 
 # 마이크 장치 목록을 출력하고 사용자 입력을 받음
 selected_device_index = list_microphones()
 
-# 선택된 마이크를 사용하여 음성 인식
-recognize_speech(selected_device_index)
+# 선택된 마이크를 사용하여 wake word 감지 및 음성 인식
+wake_word = "안녕"  # Wake word 설정
+recognize_speech(selected_device_index, wake_word)
